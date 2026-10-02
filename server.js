@@ -85,6 +85,74 @@ app.post("/people", async (req, res) => {
 
     res.status(201).json(data);
 });
+// ویرایش فرد
+app.put("/people/:id", async (req, res) => {
+
+    const id = Number(req.params.id);
+    const { first_name, last_name } = req.body;
+
+    if (!Number.isInteger(id)) {
+        return res.status(400).json({
+            error: "شناسه فرد نامعتبر است"
+        });
+    }
+
+    if (!first_name || !last_name) {
+        return res.status(400).json({
+            error: "نام و نام خانوادگی الزامی است"
+        });
+    }
+
+    const { data, error } = await supabase
+        .from("people")
+        .update({
+            first_name,
+            last_name
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+    if (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            error: "خطا در ویرایش فرد"
+        });
+    }
+
+    res.json(data);
+});
+
+
+// حذف فرد
+app.delete("/people/:id", async (req, res) => {
+
+    const id = Number(req.params.id);
+
+    if (!Number.isInteger(id)) {
+        return res.status(400).json({
+            error: "شناسه فرد نامعتبر است"
+        });
+    }
+
+    const { error } = await supabase
+        .from("people")
+        .delete()
+        .eq("id", id);
+
+    if (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            error: "خطا در حذف فرد"
+        });
+    }
+
+    res.json({
+        message: "فرد با موفقیت حذف شد"
+    });
+});
 
 
 // ==========================================
