@@ -18,16 +18,19 @@ const supabase = createClient(
 // ==========================================
 
 app.get("/", (req, res) => {
+
     res.json({
         status: "ok",
         service: "activity-server-2"
     });
+
 });
 
 
 // ==========================================
 // افراد
 // ==========================================
+
 
 // دریافت همه افراد
 app.get("/people", async (req, res) => {
@@ -38,21 +41,28 @@ app.get("/people", async (req, res) => {
         .order("id", { ascending: true });
 
     if (error) {
+
         console.error(error);
 
         return res.status(500).json({
             error: "خطا در دریافت افراد"
         });
+
     }
 
     res.json(data);
+
 });
 
 
 // افزودن فرد
 app.post("/people", async (req, res) => {
 
-    const { first_name, last_name } = req.body;
+    const {
+        first_name,
+        last_name
+    } = req.body;
+
 
     if (!first_name || !last_name) {
 
@@ -61,6 +71,7 @@ app.post("/people", async (req, res) => {
         });
 
     }
+
 
     const { data, error } = await supabase
         .from("people")
@@ -73,6 +84,7 @@ app.post("/people", async (req, res) => {
         .select()
         .single();
 
+
     if (error) {
 
         console.error(error);
@@ -83,25 +95,41 @@ app.post("/people", async (req, res) => {
 
     }
 
+
     res.status(201).json(data);
+
 });
+
+
 // ویرایش فرد
 app.put("/people/:id", async (req, res) => {
 
-    const id = Number(req.params.id);
-    const { first_name, last_name } = req.body;
+    const id =
+        Number(req.params.id);
+
+    const {
+        first_name,
+        last_name
+    } = req.body;
+
 
     if (!Number.isInteger(id)) {
+
         return res.status(400).json({
             error: "شناسه فرد نامعتبر است"
         });
+
     }
 
+
     if (!first_name || !last_name) {
+
         return res.status(400).json({
             error: "نام و نام خانوادگی الزامی است"
         });
+
     }
+
 
     const { data, error } = await supabase
         .from("people")
@@ -113,45 +141,60 @@ app.put("/people/:id", async (req, res) => {
         .select()
         .single();
 
+
     if (error) {
+
         console.error(error);
 
         return res.status(500).json({
             error: "خطا در ویرایش فرد"
         });
+
     }
 
+
     res.json(data);
+
 });
 
 
 // حذف فرد
 app.delete("/people/:id", async (req, res) => {
 
-    const id = Number(req.params.id);
+    const id =
+        Number(req.params.id);
+
 
     if (!Number.isInteger(id)) {
+
         return res.status(400).json({
             error: "شناسه فرد نامعتبر است"
         });
+
     }
+
 
     const { error } = await supabase
         .from("people")
         .delete()
         .eq("id", id);
 
+
     if (error) {
+
         console.error(error);
 
         return res.status(500).json({
             error: "خطا در حذف فرد"
         });
+
     }
+
 
     res.json({
         message: "فرد با موفقیت حذف شد"
     });
+
 });
 
 
@@ -159,12 +202,14 @@ app.delete("/people/:id", async (req, res) => {
 // انواع فعالیت
 // ==========================================
 
+
 app.get("/activity-types", async (req, res) => {
 
     const { data, error } = await supabase
         .from("activity_types")
         .select("*")
         .order("id", { ascending: true });
+
 
     if (error) {
 
@@ -176,7 +221,9 @@ app.get("/activity-types", async (req, res) => {
 
     }
 
+
     res.json(data);
+
 });
 
 
@@ -184,10 +231,12 @@ app.get("/activity-types", async (req, res) => {
 // سوابق فعالیت یک شخص
 // ==========================================
 
+
 app.get("/activities/:personId", async (req, res) => {
 
     const personId =
         Number(req.params.personId);
+
 
     if (!Number.isInteger(personId)) {
 
@@ -196,6 +245,7 @@ app.get("/activities/:personId", async (req, res) => {
         });
 
     }
+
 
     const { data, error } = await supabase
         .from("activities")
@@ -210,7 +260,10 @@ app.get("/activities/:personId", async (req, res) => {
             )
         `)
         .eq("person_id", personId)
-        .order("created_at", { ascending: false });
+        .order("created_at", {
+            ascending: false
+        });
+
 
     if (error) {
 
@@ -222,23 +275,39 @@ app.get("/activities/:personId", async (req, res) => {
 
     }
 
+
     const result = data.map(activity => ({
+
         id: activity.id,
-        person_id: activity.person_id,
-        activity_type_id: activity.activity_type_id,
-        points: activity.points,
-        created_at: activity.created_at,
+
+        person_id:
+            activity.person_id,
+
+        activity_type_id:
+            activity.activity_type_id,
+
+        points:
+            activity.points,
+
+        created_at:
+            activity.created_at,
+
         activity_type_name:
-            activity.activity_types?.name || "نامشخص"
+            activity.activity_types?.name ||
+            "نامشخص"
+
     }));
 
+
     res.json(result);
+
 });
 
 
 // ==========================================
 // ثبت فعالیت
 // ==========================================
+
 
 app.post("/activities", async (req, res) => {
 
@@ -251,19 +320,22 @@ app.post("/activities", async (req, res) => {
     if (!person_id || !activity_type_id) {
 
         return res.status(400).json({
-            error: "person_id و activity_type_id الزامی هستند"
+            error:
+                "person_id و activity_type_id الزامی هستند"
         });
 
     }
 
 
-    // دریافت امتیاز فعالیت
-    const { data: activityType, error: typeError } =
-        await supabase
-            .from("activity_types")
-            .select("id, name, points")
-            .eq("id", activity_type_id)
-            .single();
+    // دریافت اطلاعات نوع فعالیت
+    const {
+        data: activityType,
+        error: typeError
+    } = await supabase
+        .from("activity_types")
+        .select("id, name, points")
+        .eq("id", activity_type_id)
+        .single();
 
 
     if (typeError || !activityType) {
@@ -277,19 +349,26 @@ app.post("/activities", async (req, res) => {
     }
 
 
-    // ثبت فعالیت با امتیاز مربوط به همان فعالیت
-    const { data, error } =
-        await supabase
-            .from("activities")
-            .insert([
-                {
-                    person_id: person_id,
-                    activity_type_id: activity_type_id,
-                    points: activityType.points
-                }
-            ])
-            .select()
-            .single();
+    // ثبت فعالیت
+    const {
+        data,
+        error
+    } = await supabase
+        .from("activities")
+        .insert([
+            {
+                person_id:
+                    person_id,
+
+                activity_type_id:
+                    activity_type_id,
+
+                points:
+                    activityType.points
+            }
+        ])
+        .select()
+        .single();
 
 
     if (error) {
@@ -304,8 +383,57 @@ app.post("/activities", async (req, res) => {
 
 
     res.status(201).json({
+
         ...data,
-        activity_type_name: activityType.name
+
+        activity_type_name:
+            activityType.name
+
+    });
+
+});
+
+
+// ==========================================
+// حذف یک فعالیت
+// ==========================================
+
+app.delete("/activities/:id", async (req, res) => {
+
+    const id =
+        Number(req.params.id);
+
+
+    if (!Number.isInteger(id)) {
+
+        return res.status(400).json({
+            error: "شناسه فعالیت نامعتبر است"
+        });
+
+    }
+
+
+    const {
+        error
+    } = await supabase
+        .from("activities")
+        .delete()
+        .eq("id", id);
+
+
+    if (error) {
+
+        console.error(error);
+
+        return res.status(500).json({
+            error: "خطا در حذف فعالیت"
+        });
+
+    }
+
+
+    res.json({
+        message: "فعالیت با موفقیت حذف شد"
     });
 
 });
@@ -317,6 +445,7 @@ app.post("/activities", async (req, res) => {
 
 const PORT =
     process.env.PORT || 3000;
+
 
 app.listen(PORT, () => {
 
