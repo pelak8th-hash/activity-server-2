@@ -13,7 +13,10 @@ const supabase = createClient(
 );
 
 
-// تست ساده سرور
+// ==========================================
+// تست سرور
+// ==========================================
+
 app.get("/", (req, res) => {
     res.json({
         status: "ok",
@@ -22,8 +25,13 @@ app.get("/", (req, res) => {
 });
 
 
-// دریافت لیست افراد
+// ==========================================
+// افراد
+// ==========================================
+
+// دریافت همه افراد
 app.get("/people", async (req, res) => {
+
     const { data, error } = await supabase
         .from("people")
         .select("*")
@@ -31,6 +39,7 @@ app.get("/people", async (req, res) => {
 
     if (error) {
         console.error(error);
+
         return res.status(500).json({
             error: "خطا در دریافت افراد"
         });
@@ -40,14 +49,17 @@ app.get("/people", async (req, res) => {
 });
 
 
-// افزودن فرد جدید
+// افزودن فرد
 app.post("/people", async (req, res) => {
+
     const { first_name, last_name } = req.body;
 
     if (!first_name || !last_name) {
+
         return res.status(400).json({
             error: "نام و نام خانوادگی الزامی است"
         });
+
     }
 
     const { data, error } = await supabase
@@ -62,18 +74,186 @@ app.post("/people", async (req, res) => {
         .single();
 
     if (error) {
+
         console.error(error);
+
         return res.status(500).json({
             error: "خطا در ثبت فرد"
         });
+
     }
 
     res.status(201).json(data);
 });
 
 
-const PORT = process.env.PORT || 3000;
+// ==========================================
+// انواع فعالیت
+// ==========================================
+
+app.get("/activity-types", async (req, res) => {
+
+    const { data, error } = await supabase
+        .from("activity_types")
+        .select("*")
+        .order("id", { ascending: true });
+
+    if (error) {
+
+        console.error(error);
+
+        return res.status(500).json({
+            error: "خطا در دریافت انواع فعالیت"
+        });
+
+    }
+
+    res.json(data);
+});
+
+
+// ==========================================
+// سوابق فعالیت یک شخص
+// ==========================================
+
+app.get("/activities/:personId", async (req, res) => {
+
+    const personId =
+        Number(req.params.personId);
+
+    if (!Number.isInteger(personId)) {
+
+        return res.status(400).json({
+            error: "شناسه فرد نامعتبر است"
+        });
+
+    }
+
+    const { data, error } = await supabase
+        .from("activities")
+        .select(`
+            id,
+            person_id,
+            activity_type_id,
+            points,
+            created_at,
+            activity_types (
+                name
+            )
+        `)
+        .eq("person_id", personId)
+        .order("created_at", { ascending: false });
+
+    if (error) {
+
+        console.error(error);
+
+        return res.status(500).json({
+            error: "خطا در دریافت سوابق فعالیت"
+        });
+
+    }
+
+    const result = data.map(activity => ({
+        id: activity.id,
+        person_id: activity.person_id,
+        activity_type_id: activity.activity_type_id,
+        points: activity.points,
+        created_at: activity.created_at,
+        activity_type_name:
+            activity.activity_types?.name || "نامشخص"
+    }));
+
+    res.json(result);
+});
+
+
+// ==========================================
+// ثبت فعالیت
+// ==========================================
+
+app.post("/activities", async (req, res) => {
+
+    const {
+        person_id,
+        activity_type_id
+    } = req.body;
+
+
+    if (!person_id || !activity_type_id) {
+
+        return res.status(400).json({
+            error: "person_id و activity_type_id الزامی هستند"
+        });
+
+    }
+
+
+    // دریافت امتیاز فعالیت
+    const { data: activityType, error: typeError } =
+        await supabase
+            .from("activity_types")
+            .select("id, name, points")
+            .eq("id", activity_type_id)
+            .single();
+
+
+    if (typeError || !activityType) {
+
+        console.error(typeError);
+
+        return res.status(404).json({
+            error: "نوع فعالیت پیدا نشد"
+        });
+
+    }
+
+
+    // ثبت فعالیت با امتیاز مربوط به همان فعالیت
+    const { data, error } =
+        await supabase
+            .from("activities")
+            .insert([
+                {
+                    person_id: person_id,
+                    activity_type_id: activity_type_id,
+                    points: activityType.points
+                }
+            ])
+            .select()
+            .single();
+
+
+    if (error) {
+
+        console.error(error);
+
+        return res.status(500).json({
+            error: "خطا در ثبت فعالیت"
+        });
+
+    }
+
+
+    res.status(201).json({
+        ...data,
+        activity_type_name: activityType.name
+    });
+
+});
+
+
+// ==========================================
+// اجرای سرور
+// ==========================================
+
+const PORT =
+    process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+
+    console.log(
+        `Server running on port ${PORT}`
+    );
+
 });
