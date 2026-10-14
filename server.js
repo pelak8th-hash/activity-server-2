@@ -821,6 +821,106 @@ app.patch("/activity-types/:id", async (req, res) => {
 });
 
 
+// ================================================
+// افزودن فعالیت اختصاصی برای یک کاربر
+// بدون افزودن آن به فهرست عمومی activity_types
+// ================================================
+
+app.post("/activities/custom", async (req, res) => {
+    try {
+        const personId = Number(req.body.person_id);
+
+        const name =
+            typeof req.body.name === "string"
+                ? req.body.name.trim()
+                : "";
+
+        const points = Number(req.body.points);
+
+        // اعتبارسنجی اطلاعات
+        if (
+            !Number.isSafeInteger(personId) ||
+            personId <= 0 ||
+            !name ||
+            name.length > 120 ||
+            !Number.isSafeInteger(points)
+        ) {
+            return res.status(400).json({
+                success: false,
+                message: "INVALID_DATA"
+            });
+        }
+
+        // بررسی وجود کاربر
+        const {
+            data: person,
+            error: personError
+        } = await supabase
+            .from("people")
+            .select("id")
+            .eq("id", personId)
+            .maybeSingle();
+
+        if (personError) {
+            throw personError;
+        }
+
+        if (!person) {
+            return res.status(404).json({
+                success: false,
+                message: "PERSON_NOT_FOUND"
+            });
+        }
+
+        // ذخیره فعالیت فقط در سوابق همین کاربر
+        const {
+            data,
+            error
+        } = await supabase
+            .from("activities")
+            .insert([{
+                person_id: personId,
+                activity_type_id: null,
+                custom_activity_name: name,
+                points: points
+            }])
+            .select(`
+                id,
+                person_id,
+                activity_type_id,
+                custom_activity_name,
+                points,
+                created_at
+            `)
+            .single();
+
+        if (error) {
+            throw error;
+        }
+
+        return res.status(201).json({
+            success: true,
+            activity: {
+                ...data,
+                activity_type_name: data.custom_activity_name,
+                activity_type_category: "receive"
+            }
+        });
+
+    } catch (error) {
+        console.error(
+            "POST CUSTOM ACTIVITY ERROR:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message: "DATABASE_ERROR"
+        });
+    }
+});
+
+
 // ==========================================
 // سوابق فعالیت یک شخص
 // ==========================================
