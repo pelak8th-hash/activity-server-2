@@ -677,54 +677,6 @@ app.post("/activity-types", async (req, res) => {
 
 });
 
-app.patch("/activities/:id/description", async (req, res) => {
-
-    console.log("DESCRIPTION REQUEST RECEIVED:", {
-        id: req.params.id,
-        body: req.body
-    });
-    try {
-        const id = Number(req.params.id);
-        const description = String(req.body.description ?? "").trim();
-
-        if (!Number.isInteger(id) || id <= 0) {
-            return res.status(400).json({
-                error: "شناسه فعالیت نامعتبر است"
-            });
-        }
-
-        if (description.length > 1000) {
-            return res.status(400).json({
-                error: "توضیحات نباید بیشتر از ۱۰۰۰ نویسه باشد"
-            });
-        }
-
-        const { data, error } = await supabase
-            .from("activities")
-            .update({
-                description: description || null
-            })
-            .eq("id", id)
-            .select("id, description")
-            .single();
-
-        if (error) throw error;
-
-        return res.json({
-            success: true,
-            data
-        });
-    } catch (error) {
-        console.error(
-            "SAVE ACTIVITY DESCRIPTION ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            error: "ذخیره توضیحات انجام نشد"
-        });
-    }
-});
 
 // ویرایش نوع فعالیت
 app.patch("/activity-types/:id", async (req, res) => {
