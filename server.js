@@ -1000,14 +1000,16 @@ app.get("/activities/:personId", async (req, res) => {
                         activity.created_at,
 
                     activity_type_name:
-                        activity.custom_activity_name ||
-                        activity.activity_types?.name ||
+                        activity.custom_activity_name ??
+                        activity.activity_types?.name ??
                         "نامشخص",
+
+                    custom_activity_name:
+                        activity.custom_activity_name ?? null,
 
                     category:
                         activity.activity_types?.category ||
-                        "use"
-
+                        (activity.custom_activity_name ? "receive" : "use")
                 }));
 
 
