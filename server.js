@@ -986,11 +986,14 @@ app.get("/activities/:personId", async (req, res) => {
             error
         } = await supabase
             .from("activities")
+            
             .select(`
                 id,
                 person_id,
                 activity_type_id,
                 custom_activity_name,
+                custom_activity_category,
+                description,
                 points,
                 created_at,
                 activity_types (
@@ -1031,6 +1034,9 @@ app.get("/activities/:personId", async (req, res) => {
                     activity_type_id:
                         activity.activity_type_id,
 
+                    description:
+                        activity.description || "",
+
                     points:
                         activity.points,
 
@@ -1046,6 +1052,7 @@ app.get("/activities/:personId", async (req, res) => {
                         activity.custom_activity_name ?? null,
 
                     category:
+                        activity.custom_activity_category ||
                         activity.activity_types?.category ||
                         (activity.custom_activity_name ? "receive" : "use")
                 }));
@@ -1333,124 +1340,73 @@ app.post(
 // ویرایش یک فعالیت
 // ==========================================
 
-app.patch("/activities/:id", async (req, res) => {
+// ==========================================
+// ذخیره و ویرایش توضیحات یک فعالیت
+// ==========================================
 
+app.patch("/activities/:id/description", async (req, res) => {
     try {
+        const id = Number(req.params.id);
 
-        const id =
-            Number(req.params.id);
+        const description =
+            typeof req.body.description === "string"
+                ? req.body.description.trim()
+                : "";
 
-        const activityTypeId =
-            Number(req.body.activity_type_id);
-
-
-        if (
-            !Number.isInteger(id) ||
-            !Number.isInteger(activityTypeId)
-        ) {
-
+        if (!Number.isSafeInteger(id) || id <= 0) {
             return res.status(400).json({
-                error:
-                    "اطلاعات نامعتبر است"
+                success: false,
+                error: "شناسه فعالیت نامعتبر است."
             });
-
         }
 
-
-        // دریافت نوع جدید
-        const {
-            data: activityType,
-            error: typeError
-        } = await supabase
-            .from("activity_types")
-            .select(`
-                id,
-                name,
-                points,
-                category,
-                setting_type
-            `)
-            .eq("id", activityTypeId)
-            .single();
-
-
-        if (
-            typeError ||
-            !activityType
-        ) {
-
-            return res.status(404).json({
-                error:
-                    "نوع فعالیت پیدا نشد"
-            });
-
-        }
-
-
-        if (
-            activityType.setting_type === "sessions"
-        ) {
-
+        if (description.length > 1000) {
             return res.status(400).json({
-                error:
-                    "سانس قابل انتخاب برای فعالیت نیست"
+                success: false,
+                error: "توضیحات نباید بیشتر از ۱۰۰۰ نویسه باشد."
             });
-
         }
 
-
-        const {
-            data,
-            error
-        } = await supabase
+        const { data, error } = await supabase
             .from("activities")
             .update({
-
-                activity_type_id:
-                    activityTypeId,
-
-                points:
-                    activityType.points
-
+                description: description || null
             })
             .eq("id", id)
-            .select()
-            .single();
-
+            .select("id, description")
+            .maybeSingle();
 
         if (error) {
-            throw error;
+            console.error("SUPABASE DESCRIPTION ERROR:", error);
+
+            return res.status(500).json({
+                success: false,
+                error: "خطا در ذخیره توضیحات در دیتابیس.",
+                details: error.message
+            });
         }
 
+        if (!data) {
+            return res.status(404).json({
+                success: false,
+                error: "فعالیت موردنظر پیدا نشد."
+            });
+        }
 
-        res.json({
-
-            ...data,
-
-            activity_type_name:
-                activityType.name,
-
-            category:
-                activityType.category
-
+        return res.json({
+            success: true,
+            data: data
         });
 
     } catch (error) {
+        console.error("SAVE ACTIVITY DESCRIPTION ERROR:", error);
 
-        console.error(
-            "EDIT ACTIVITY ERROR:",
-            error
-        );
-
-        res.status(500).json({
-            error:
-                "خطا در ویرایش فعالیت"
+        return res.status(500).json({
+            success: false,
+            error: "ذخیره توضیحات انجام نشد."
         });
-
     }
-
 });
-
 
 // ==========================================
 // حذف یک فعالیت
