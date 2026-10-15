@@ -952,6 +952,7 @@ app.get("/activities/:personId", async (req, res) => {
                 id,
                 person_id,
                 activity_type_id,
+                custom_activity_name,
                 points,
                 created_at,
                 activity_types (
@@ -999,6 +1000,7 @@ app.get("/activities/:personId", async (req, res) => {
                         activity.created_at,
 
                     activity_type_name:
+                        activity.custom_activity_name ||
                         activity.activity_types?.name ||
                         "نامشخص",
 
