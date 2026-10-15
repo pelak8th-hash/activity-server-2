@@ -829,93 +829,88 @@ app.patch("/activity-types/:id", async (req, res) => {
 app.post("/activities/custom", async (req, res) => {
     try {
         const personId = Number(req.body.person_id);
-
         const name =
             typeof req.body.name === "string"
                 ? req.body.name.trim()
                 : "";
-
         const points = Number(req.body.points);
+        const category = req.body.category;
 
-        // اعتبارسنجی اطلاعات
+        // اعتبارسنجی شناسه کاربر
+        if (!Number.isInteger(personId) || personId <= 0) {
+            return res.status(400).json({
+                error: "شناسه کاربر نامعتبر است."
+            });
+        }
+
+        // اعتبارسنجی نام فعالیت
+        if (!name) {
+            return res.status(400).json({
+                error: "نام فعالیت را وارد کنید."
+            });
+        }
+
+        // اعتبارسنجی امتیاز
         if (
-            !Number.isSafeInteger(personId) ||
-            personId <= 0 ||
-            !name ||
-            name.length > 120 ||
-            !Number.isSafeInteger(points)
+            req.body.points === undefined ||
+            req.body.points === null ||
+            req.body.points === "" ||
+            !Number.isFinite(points)
         ) {
             return res.status(400).json({
-                success: false,
-                message: "INVALID_DATA"
+                error: "امتیاز واردشده نامعتبر است."
             });
         }
 
-        // بررسی وجود کاربر
-        const {
-            data: person,
-            error: personError
-        } = await supabase
-            .from("people")
-            .select("id")
-            .eq("id", personId)
-            .maybeSingle();
-
-        if (personError) {
-            throw personError;
-        }
-
-        if (!person) {
-            return res.status(404).json({
-                success: false,
-                message: "PERSON_NOT_FOUND"
+        // اعتبارسنجی نوع فعالیت
+        if (category !== "use" && category !== "receive") {
+            return res.status(400).json({
+                error: "نوع فعالیت باید استفاده یا دریافت باشد."
             });
         }
 
-        // ذخیره فعالیت فقط در سوابق همین کاربر
-        const {
-            data,
-            error
-        } = await supabase
+        // ذخیره فعالیت اختصاصی در Supabase
+        const { data, error } = await supabase
             .from("activities")
-            .insert([{
+            .insert({
                 person_id: personId,
                 activity_type_id: null,
                 custom_activity_name: name,
+                custom_activity_category: category,
                 points: points
-            }])
-            .select(`
-                id,
-                person_id,
-                activity_type_id,
-                custom_activity_name,
-                points,
-                created_at
-            `)
+            })
+            .select()
             .single();
 
         if (error) {
-            throw error;
+            console.error(
+                "خطا در ثبت فعالیت اختصاصی:",
+                error
+            );
+
+            return res.status(500).json({
+                error: "ثبت فعالیت اختصاصی ناموفق بود."
+            });
         }
 
+        // پاسخ موفقیت‌آمیز
         return res.status(201).json({
             success: true,
-            activity: {
-                ...data,
-                activity_type_name: data.custom_activity_name,
-                activity_type_category: "receive"
-            }
+            message: "فعالیت اختصاصی با موفقیت ثبت شد.",
+            activity: data,
+            activity_type_name: data.custom_activity_name,
+            activity_type_category:
+                data.custom_activity_category
         });
 
-    } catch (error) {
+    } catch (err) {
         console.error(
-            "POST CUSTOM ACTIVITY ERROR:",
-            error
+            "خطای سرور هنگام ثبت فعالیت اختصاصی:",
+            err
         );
 
         return res.status(500).json({
-            success: false,
-            message: "DATABASE_ERROR"
+            error: "خطای داخلی سرور هنگام ثبت فعالیت اختصاصی."
         });
     }
 });
