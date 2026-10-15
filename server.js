@@ -678,6 +678,11 @@ app.post("/activity-types", async (req, res) => {
 });
 
 app.patch("/activities/:id/description", async (req, res) => {
+
+    console.log("DESCRIPTION REQUEST RECEIVED:", {
+        id: req.params.id,
+        body: req.body
+    });
     try {
         const id = Number(req.params.id);
         const description = String(req.body.description ?? "").trim();
@@ -1337,10 +1342,6 @@ app.post(
 
 
 // ==========================================
-// ویرایش یک فعالیت
-// ==========================================
-
-// ==========================================
 // ذخیره و ویرایش توضیحات یک فعالیت
 // ==========================================
 
@@ -1406,6 +1407,128 @@ app.patch("/activities/:id/description", async (req, res) => {
             error: "ذخیره توضیحات انجام نشد."
         });
     }
+});
+
+// ==========================================
+// ویرایش یک فعالیت
+// ==========================================
+
+app.patch("/activities/:id", async (req, res) => {
+
+    try {
+
+        const id =
+            Number(req.params.id);
+
+        const activityTypeId =
+            Number(req.body.activity_type_id);
+
+
+        if (
+            !Number.isInteger(id) ||
+            !Number.isInteger(activityTypeId)
+        ) {
+
+            return res.status(400).json({
+                error:
+                    "اطلاعات نامعتبر است"
+            });
+
+        }
+
+
+        // دریافت نوع جدید
+        const {
+            data: activityType,
+            error: typeError
+        } = await supabase
+            .from("activity_types")
+            .select(`
+                id,
+                name,
+                points,
+                category,
+                setting_type
+            `)
+            .eq("id", activityTypeId)
+            .single();
+
+
+        if (
+            typeError ||
+            !activityType
+        ) {
+
+            return res.status(404).json({
+                error:
+                    "نوع فعالیت پیدا نشد"
+            });
+
+        }
+
+
+        if (
+            activityType.setting_type === "sessions"
+        ) {
+
+            return res.status(400).json({
+                error:
+                    "سانس قابل انتخاب برای فعالیت نیست"
+            });
+
+        }
+
+
+        const {
+            data,
+            error
+        } = await supabase
+            .from("activities")
+            .update({
+
+                activity_type_id:
+                    activityTypeId,
+
+                points:
+                    activityType.points
+
+            })
+            .eq("id", id)
+            .select()
+            .single();
+
+
+        if (error) {
+            throw error;
+        }
+
+
+        res.json({
+
+            ...data,
+
+            activity_type_name:
+                activityType.name,
+
+            category:
+                activityType.category
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "EDIT ACTIVITY ERROR:",
+            error
+        );
+
+        res.status(500).json({
+            error:
+                "خطا در ویرایش فعالیت"
+        });
+
+    }
+
 });
 
 // ==========================================
