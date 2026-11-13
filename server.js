@@ -26,18 +26,19 @@ app.get("/", (req, res) => {
 
 });
 
-
 // ==========================================
-// افراد
+// دریافت افراد و شماره تلفن‌ها - نسخه بهینه
 // ==========================================
 
-
-// دریافت همه افراد
 app.get("/people", async (req, res) => {
+    const startedAt = Date.now();
 
     try {
-
-        const { data, error } = await supabase
+        // دریافت افراد
+        const {
+            data: people,
+            error: peopleError
+        } = await supabase
             .from("people")
             .select(`
                 id,
@@ -49,70 +50,83 @@ app.get("/people", async (req, res) => {
                 ascending: true
             });
 
-
-        if (error) {
-            throw error;
+        if (peopleError) {
+            throw peopleError;
         }
 
+        const peopleList = people || [];
 
-        // دریافت شماره تلفن‌ها
-        const peopleWithPhones = await Promise.all(
+        // اگر فردی وجود نداشت
+        if (peopleList.length === 0) {
+            console.log(
+                `GET /people completed in ${Date.now() - startedAt}ms`
+            );
 
-            (data || []).map(async person => {
+            return res.json([]);
+        }
 
-                const {
-                    data: phones,
-                    error: phoneError
-                } = await supabase
-                    .from("person_phones")
-                    .select(`
-                        id,
-                        phone,
-                        created_at
-                    `)
-                    .eq("person_id", person.id)
-                    .order("created_at", {
-                        ascending: true
-                    });
+        // استخراج شناسه افراد
+        const personIds = peopleList.map(person => person.id);
 
+        // دریافت تمام شماره تلفن‌ها در یک درخواست
+        const {
+            data: phones,
+            error: phonesError
+        } = await supabase
+            .from("person_phones")
+            .select(`
+                id,
+                person_id,
+                phone,
+                created_at
+            `)
+            .in("person_id", personIds)
+            .order("created_at", {
+                ascending: true
+            });
 
-                if (phoneError) {
+        if (phonesError) {
+            throw phonesError;
+        }
 
-                    console.error(phoneError);
+        // گروه‌بندی شماره تلفن‌ها بر اساس شناسه فرد
+        const phonesByPerson = new Map();
 
-                    return {
-                        ...person,
-                        phones: []
-                    };
+        for (const phone of (phones || [])) {
+            if (!phonesByPerson.has(phone.person_id)) {
+                phonesByPerson.set(phone.person_id, []);
+            }
 
-                }
+            phonesByPerson.get(phone.person_id).push({
+                id: phone.id,
+                phone: phone.phone,
+                created_at: phone.created_at
+            });
+        }
 
+        // ساخت خروجی با همان ساختار قبلی
+        const result = peopleList.map(person => ({
+            ...person,
+            phones: phonesByPerson.get(person.id) || []
+        }));
 
-                return {
-                    ...person,
-                    phones: phones || []
-                };
-
-            })
-
+        console.log(
+            `GET /people completed: ${result.length} people in ${Date.now() - startedAt}ms`
         );
 
-
-        res.json(peopleWithPhones);
+        return res.json(result);
 
     } catch (error) {
+        console.error("GET PEOPLE ERROR:", error);
 
         console.error(
-            "GET PEOPLE ERROR:",
-            error
+            `GET /people failed after ${Date.now() - startedAt}ms`
         );
 
-        res.status(500).json({
+        return res.status(500).json({
             error: "خطا در دریافت افراد"
         });
-
     }
-
 });
 
 
