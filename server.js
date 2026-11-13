@@ -401,37 +401,26 @@ app.get("/people/:personId/phones", async (req, res) => {
 });
 
 
-// افزودن شماره تلفن
+// افزودن شماره تلفن با بررسی تکراری نبودن
 app.post("/people/:personId/phones", async (req, res) => {
 
     try {
 
-        const personId =
-            Number(req.params.personId);
+        const personId = Number(req.params.personId);
 
+        const phone = String(req.body.phone || "").trim();
 
-        const phone =
-            String(req.body.phone || "").trim();
-
-
-        if (!Number.isInteger(personId)) {
-
+        if (!Number.isInteger(personId) || personId <= 0) {
             return res.status(400).json({
                 error: "شناسه فرد نامعتبر است"
             });
-
         }
-
 
         if (!phone) {
-
             return res.status(400).json({
-                error:
-                    "شماره تلفن الزامی است"
+                error: "شماره تلفن الزامی است"
             });
-
         }
-
 
         // بررسی وجود فرد
         const {
@@ -443,16 +432,40 @@ app.post("/people/:personId/phones", async (req, res) => {
             .eq("id", personId)
             .single();
 
-
         if (personError || !person) {
-
             return res.status(404).json({
                 error: "فرد پیدا نشد"
+            });
+        }
+
+        // بررسی ثبت قبلی همین شماره برای هر شخص
+        const {
+            data: existingPhone,
+            error: duplicateError
+        } = await supabase
+            .from("person_phones")
+            .select("id, person_id")
+            .eq("phone", phone)
+            .limit(1);
+
+        if (duplicateError) {
+            throw duplicateError;
+        }
+
+        if (existingPhone && existingPhone.length > 0) {
+
+            const isSamePerson =
+                Number(existingPhone[0].person_id) === personId;
+
+            return res.status(409).json({
+                error: isSamePerson
+                    ? "این شماره قبلاً برای همین شخص ثبت شده است."
+                    : "این شماره تلفن قبلاً برای شخص دیگری ثبت شده است."
             });
 
         }
 
-
+        // ثبت شماره
         const {
             data,
             error
@@ -460,40 +473,30 @@ app.post("/people/:personId/phones", async (req, res) => {
             .from("person_phones")
             .insert([
                 {
-                    person_id:
-                        personId,
-
-                    phone:
-                        phone
+                    person_id: personId,
+                    phone: phone
                 }
             ])
             .select()
             .single();
 
-
         if (error) {
             throw error;
         }
 
-
-        res.status(201).json(data);
+        return res.status(201).json(data);
 
     } catch (error) {
 
-        console.error(
-            "ADD PHONE ERROR:",
-            error
-        );
+        console.error("ADD PHONE ERROR:", error);
 
-        res.status(500).json({
-            error:
-                "خطا در ثبت شماره تلفن"
+        return res.status(500).json({
+            error: "خطا در ثبت شماره تلفن"
         });
 
     }
 
 });
-
 
 // حذف شماره تلفن
 app.delete("/phones/:id", async (req, res) => {
